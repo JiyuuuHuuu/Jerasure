@@ -19,6 +19,7 @@ LT_INIT([disable-static])
 
 # Checks for programs.
 AC_PROG_CC
+AC_PROG_CXX([g++ cl KCC CC cxx cc++ xlC aCC c++])
 
 # Checks for libraries.
 AC_CHECK_LIB([gf_complete], [gf_init_easy], [],

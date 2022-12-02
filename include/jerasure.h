@@ -45,6 +45,7 @@
 /* This uses procedures from the Galois Field arithmetic library */
 
 #include "galois.h"
+#include "tvm_jerasure.h"
 
 #ifdef __cplusplus
 extern "C" {
