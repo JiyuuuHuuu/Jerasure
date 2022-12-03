@@ -138,14 +138,14 @@ int main(int argc, char **argv)
   jerasure_print_bitmatrix(bitmatrix, w*m, w*k, w);
   printf("</pre><hr>\n");
 
-  data = talloc(char *, k*w);
-  for (i = 0; i < k*w; i++) {
+  data = talloc(char *, k);
+  for (i = 0; i < k; i++) {
     data[i] = talloc(char, psize*w);
     MOA_Fill_Random_Region(data[i], psize*w);
   }
 
-  coding = talloc(char *, m*k);
-  for (i = 0; i < m*w; i++) {
+  coding = talloc(char *, m);
+  for (i = 0; i < m; i++) {
     coding[i] = talloc(char, psize*w);
   }
 
