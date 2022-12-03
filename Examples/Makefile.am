@@ -23,7 +23,8 @@ bin_PROGRAMS = jerasure_01 \
                cauchy_04 \
                liberation_01 \
                encoder \
-               decoder
+               decoder \
+               jerasure_tvm
 
 check_PROGRAMS = 
 
@@ -42,6 +43,8 @@ jerasure_05_SOURCES = jerasure_05.c
 jerasure_06_SOURCES = jerasure_06.c
 jerasure_07_SOURCES = jerasure_07.c
 jerasure_08_SOURCES = jerasure_08.c
+
+jerasure_tvm_SOURCES = jerasure_tvm.c
 
 reed_sol_01_SOURCES = reed_sol_01.c
 reed_sol_02_SOURCES = reed_sol_02.c

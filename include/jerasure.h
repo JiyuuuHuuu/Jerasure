@@ -145,6 +145,9 @@ void jerasure_matrix_encode(int k, int m, int w, int *matrix,
 void jerasure_bitmatrix_encode(int k, int m, int w, int *bitmatrix,
                             char **data_ptrs, char **coding_ptrs, int size, int packetsize);
 
+void tvm_ec_bitmatrix_encode(int k, int m, int w, int *bitmatrix,
+                            char **data_ptrs, char **coding_ptrs, int size, int packetsize);
+
 void jerasure_schedule_encode(int k, int m, int w, int **schedule,
                                   char **data_ptrs, char **coding_ptrs, int size, int packetsize);
 
