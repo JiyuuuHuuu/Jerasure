@@ -1476,6 +1476,85 @@ void tvm_ec_bitmatrix_encode(int k, int m, int w, int *bitmatrix,
   tvm_ec_bitmatrix_multiply(k, m, w, bitmatrix, data_ptrs, coding_ptrs, 0, packetsize);
 }
 
+int tvm_ec_bitmatrix_decode(int k, int m, int w, int *bitmatrix, int *erasures,
+                            char **data_ptrs, char **coding_ptrs, int size, int packetsize)
+{
+  int i;
+  int *erased;
+  int *decoding_matrix, *short_decoding_matrix;
+  int *dm_ids;
+  int edd;
+  char **survivor_ptrs, **recover_ptrs;
+  
+  erased = jerasure_erasures_to_erased(k, m, erasures);
+  if (erased == NULL) return -1;
+    
+  edd = 0;
+  for (i = 0; i < k; i++) {
+    if (erased[i]) {
+      edd++;
+    } 
+  }
+  
+  dm_ids = NULL;
+  decoding_matrix = NULL;
+  
+  if (edd > 1) {
+
+    dm_ids = talloc(int, k);
+    if (dm_ids == NULL) {
+      free(erased);
+      return -1;
+    }
+  
+    decoding_matrix = talloc(int, k*k*w*w);
+    if (decoding_matrix == NULL) {
+      free(erased);
+      free(dm_ids);
+      return -1;
+    }
+  
+    if (jerasure_make_decoding_bitmatrix(k, m, w, bitmatrix, erased, decoding_matrix, dm_ids) < 0) {
+      free(erased);
+      free(dm_ids);
+      free(decoding_matrix);
+      return -1;
+    }
+  }
+
+  // TODO: decoding procedure
+
+  // generate decoding matrix corresponding to only recover data
+  short_decoding_matrix = talloc(int, m*k*w*w);
+  survivor_ptrs = talloc(char *, k);
+  recover_ptrs = talloc(char *, m);
+  int short_offset = 0;
+  int survivor_idx = 0;
+  int device_blk_size = k*w*w*sizeof(int);
+  for (i = 0; i < k+m; i++) {
+    if (erased[i]) {
+      // copy target portion of decoding matrix
+      memcpy(short_decoding_matrix + short_offset, decoding_matrix + i*device_blk_size, device_blk_size);
+      short_offset += device_blk_size;
+    } else {
+      survivor_ptrs[survivor_idx] = i < k ? data_ptrs[i] : coding_ptrs[i-k];
+      survivor_idx++;
+    }
+
+    if (i < m)
+      recover_ptrs[m] = talloc(char, packetsize*w);
+  }
+
+  tvm_ec_bitmatrix_multiply(k, m, w, short_decoding_matrix, survivor_ptrs, recover_ptrs, 0, packetsize);
+
+  free(erased);
+  if (dm_ids != NULL) free(dm_ids);
+  if (decoding_matrix != NULL) free(decoding_matrix);
+  if (short_decoding_matrix != NULL) free(short_decoding_matrix);
+
+  return 0;
+}
+
 /*
  * Exported function for use by autoconf to perform quick 
  * spot-check.
