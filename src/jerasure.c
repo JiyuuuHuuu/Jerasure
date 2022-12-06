@@ -48,6 +48,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <sys/time.h>
 
 #include "galois.h"
 #include "jerasure.h"
@@ -58,6 +59,13 @@
 static double jerasure_total_xor_bytes = 0;
 static double jerasure_total_gf_bytes = 0;
 static double jerasure_total_memcpy_bytes = 0;
+
+unsigned long long current_timestamp() {
+    struct timeval te; 
+    gettimeofday(&te, NULL); // get current time
+    unsigned long long microseconds = te.tv_sec*1000000LL + te.tv_usec; // calculate milliseconds
+    return microseconds;
+}
 
 void jerasure_print_matrix(int *m, int rows, int cols, int w)
 {
@@ -1476,8 +1484,13 @@ void tvm_ec_bitmatrix_encode(int k, int m, int w, int *bitmatrix,
   tvm_ec_bitmatrix_multiply(k, m, w, bitmatrix, data_ptrs, coding_ptrs, 0, packetsize);
 }
 
-int tvm_ec_bitmatrix_decode(int k, int m, int w, int *bitmatrix, int *erasures,
-                            char **data_ptrs, char **coding_ptrs, int size, int packetsize)
+void tvm_ec_bitmatrix_encode_timing(int k, int m, int w, int *bitmatrix,
+                            char **data_ptrs, char **coding_ptrs, int repeat, int packetsize) {
+  tvm_ec_bitmatrix_multiply_timing(k, m, w, bitmatrix, data_ptrs, coding_ptrs, repeat, packetsize);
+}
+
+char ** tvm_ec_bitmatrix_decode(int k, int m, int w, int *bitmatrix, int *erasures,
+                            char **data_ptrs, char **coding_ptrs, int size, int packetsize, int timing)
 {
   int i;
   int *erased;
@@ -1485,9 +1498,10 @@ int tvm_ec_bitmatrix_decode(int k, int m, int w, int *bitmatrix, int *erasures,
   int *dm_ids;
   int edd;
   char **survivor_ptrs, **recover_ptrs;
+  unsigned long long start, duration;
   
   erased = jerasure_erasures_to_erased(k, m, erasures);
-  if (erased == NULL) return -1;
+  if (erased == NULL) return NULL;
     
   edd = 0;
   for (i = 0; i < k; i++) {
@@ -1504,25 +1518,33 @@ int tvm_ec_bitmatrix_decode(int k, int m, int w, int *bitmatrix, int *erasures,
     dm_ids = talloc(int, k);
     if (dm_ids == NULL) {
       free(erased);
-      return -1;
+      return NULL;
     }
   
     decoding_matrix = talloc(int, k*k*w*w);
     if (decoding_matrix == NULL) {
       free(erased);
       free(dm_ids);
-      return -1;
+      return NULL;
     }
   
     if (jerasure_make_decoding_bitmatrix(k, m, w, bitmatrix, erased, decoding_matrix, dm_ids) < 0) {
       free(erased);
       free(dm_ids);
       free(decoding_matrix);
-      return -1;
+      return NULL;
+    }
+
+    if (timing > 0) {
+      jerasure_make_decoding_bitmatrix(k, m, w, bitmatrix, erased, decoding_matrix, dm_ids);
+      start = current_timestamp();
+      for (int repeat = 0; repeat < timing; repeat++) {
+        jerasure_make_decoding_bitmatrix(k, m, w, bitmatrix, erased, decoding_matrix, dm_ids);
+      }
+      duration = current_timestamp() - start;
+      printf("%lf ", (double)duration/timing);
     }
   }
-
-  // TODO: decoding procedure
 
   // generate decoding matrix corresponding to only recover data
   short_decoding_matrix = talloc(int, m*k*w*w);
@@ -1545,13 +1567,25 @@ int tvm_ec_bitmatrix_decode(int k, int m, int w, int *bitmatrix, int *erasures,
       recover_ptrs[i] = talloc(char, packetsize*w);
   }
 
-  tvm_ec_bitmatrix_multiply(k, m, w, short_decoding_matrix, survivor_ptrs, coding_ptrs, 0, packetsize);
+  tvm_ec_bitmatrix_multiply(k, m, w, short_decoding_matrix, survivor_ptrs, recover_ptrs, 0, packetsize);
+
+  if (timing > 0) {
+    tvm_ec_bitmatrix_multiply(k, m, w, short_decoding_matrix, survivor_ptrs, recover_ptrs, 0, packetsize);
+    start = current_timestamp();
+    for (int repeat = 0; repeat < timing; repeat++) {
+      tvm_ec_bitmatrix_multiply(k, m, w, short_decoding_matrix, survivor_ptrs, recover_ptrs, 0, packetsize);
+    }
+    duration = current_timestamp() - start;
+    printf("%lf ", (double)duration/timing);
+  }
+
   free(erased);
   if (dm_ids != NULL) free(dm_ids);
   if (decoding_matrix != NULL) free(decoding_matrix);
   if (short_decoding_matrix != NULL) free(short_decoding_matrix);
+  if (survivor_ptrs != NULL) free(survivor_ptrs);
 
-  return 0;
+  return recover_ptrs;
 }
 
 /*

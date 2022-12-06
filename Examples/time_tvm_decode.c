@@ -63,8 +63,7 @@ static void usage(char *s)
   fprintf(stderr, "       k+m must be < 2^w.  Packetsize must be a multiple of sizeof(long)\n");
   fprintf(stderr, "       It sets up a Cauchy generator matrix and encodes k devices of w*packetsize bytes.\n");
   fprintf(stderr, "       After that, it decodes device 0 by using jerasure_make_decoding_bitmatrix()\n");
-  fprintf(stderr, "       and jerasure_bitmatrix_dotprod(). Verbose in range [0, 2]\n");
-  fprintf(stderr, "       0: brief output, 1: detailed output, 2: timing info only\n");
+  fprintf(stderr, "       and jerasure_bitmatrix_dotprod().\n");
   fprintf(stderr, "       \n");
   fprintf(stderr, "This demonstrates: jerasure_bitmatrix_encode()\n");
   fprintf(stderr, "                   jerasure_bitmatrix_decode()\n");
@@ -75,52 +74,24 @@ static void usage(char *s)
   exit(1);
 }
 
-static void print_array(char **ptrs, int ndevices, int size, int packetsize, char *label)
-{
-  int i, j, x;
-  unsigned char *up;
-
-  printf("<center><table border=3 cellpadding=3><tr><td></td>\n");
-
-  for (i = 0; i < ndevices; i++) printf("<td align=center>%s%x</td>\n", label, i);
-  printf("</tr>\n");
-  printf("<td align=right><pre>");
-  for (j = 0; j < size/packetsize; j++) printf("Packet %d\n", j);
-  printf("</pre></td>\n");
-  for (i = 0; i < ndevices; i++) {
-    printf("<td><pre>");
-    up = (unsigned char *) ptrs[i];
-    for (j = 0; j < size/packetsize; j++) {
-      for (x = 0; x < packetsize; x++) {
-        if (x > 0 && x%4 == 0) printf(" ");
-        printf("%02x", up[j*packetsize+x]);
-      }
-      printf("\n");
-    }
-    printf("</td>\n");
-  }
-  printf("</tr></table></center>\n");
-}
-
 unsigned long long current_timestamp() {
     struct timeval te; 
     gettimeofday(&te, NULL); // get current time
     unsigned long long microseconds = te.tv_sec*1000000LL + te.tv_usec; // calculate milliseconds
-    // printf("milliseconds: %lld\n", milliseconds);
     return microseconds;
 }
 
 int main(int argc, char **argv)
 {
-  int k, w, i, j, m, psize, verbose;
+  int k, w, i, j, m, psize;
   int *matrix, *bitmatrix;
-  char **data, **coding, **recover;
+  char **data, **coding;
   int *erasures, *erased;
   // int *decoding_matrix, *dm_ids;
   uint32_t seed;
-  unsigned long long start, duration;
+  // unsigned long long start, duration;
   
-  if (argc != 7) usage(NULL);
+  if (argc != 6) usage(NULL);
   if (sscanf(argv[1], "%d", &k) == 0 || k <= 0) usage("Bad k");
   if (sscanf(argv[2], "%d", &m) == 0 || m <= 0) usage("Bad m");
   if (sscanf(argv[3], "%d", &w) == 0 || w <= 0 || w > 32) usage("Bad w");
@@ -128,7 +99,6 @@ int main(int argc, char **argv)
   if (sscanf(argv[4], "%d", &psize) == 0 || psize <= 0) usage("Bad packetsize");
   if(psize%sizeof(long) != 0) usage("Packetsize must be multiple of sizeof(long)");
   if (sscanf(argv[5], "%d", &seed) == 0) usage("Bad seed");
-  if (sscanf(argv[6], "%d", &verbose) == 0) usage("Verbose in range [0, 2]");
 
   MOA_Seed(seed);
   matrix = talloc(int, m*k);
@@ -138,42 +108,6 @@ int main(int argc, char **argv)
     }
   }
   bitmatrix = jerasure_matrix_to_bitmatrix(k, m, w, matrix);
-
-  if (verbose != 2){
-    printf("<HTML><TITLE>jerasure_tvm");
-    for (i = 1; i < argc; i++) printf(" %s", argv[i]);
-    printf("</TITLE>\n");
-    printf("<h3>jerasure_tvm");
-    for (i = 1; i < argc; i++) printf(" %s", argv[i]);
-    printf("</h3>\n");
-  } else {
-    start = current_timestamp();
-    for (int repeat = 0; repeat < TIMING_REPEAT; repeat++) {
-      for (i = 0; i < m; i++) {
-        for (j = 0; j < k; j++) {
-          matrix[i*k+j] = galois_single_divide(1, i ^ (m + j), w);
-        }
-      }
-    }
-    duration = current_timestamp() - start;
-    printf("%lf ", (double)duration/TIMING_REPEAT);
-
-    bitmatrix = jerasure_matrix_to_bitmatrix(k, m, w, matrix);
-
-    start = current_timestamp();
-    for (int repeat = 0; repeat < TIMING_REPEAT; repeat++) {
-      bitmatrix = jerasure_matrix_to_bitmatrix(k, m, w, matrix);
-    }
-    duration = current_timestamp() - start;
-    printf("%lf ", (double)duration/TIMING_REPEAT);
-  }
-
-  if (verbose == 1) {
-    printf("<hr>\n");
-    printf("Last (m * w) rows of the Generator Matrix: (G^T):\n<pre>\n");
-    jerasure_print_bitmatrix(bitmatrix, w*m, w*k, w);
-    printf("</pre><hr>\n");
-  }
 
   data = talloc(char *, k);
   for (i = 0; i < k; i++) {
@@ -188,25 +122,6 @@ int main(int argc, char **argv)
 
   tvm_ec_bitmatrix_encode(k, m, w, bitmatrix, data, coding, w*psize, psize);
 
-  if (verbose != 2) {
-    printf("Encoding Complete\n\n");
-  } else {
-    start = current_timestamp();
-    for (int repeat = 0; repeat < TIMING_REPEAT; repeat++) {
-      tvm_ec_bitmatrix_encode(k, m, w, bitmatrix, data, coding, w*psize, psize);
-    }
-    duration = current_timestamp() - start;
-    printf("%lf ", (double)duration/TIMING_REPEAT);
-  }
-  if (k < 16 && m < 8 && psize < 64 && verbose == 1) {
-    printf("Here is the state of the system\n\n");
-    printf("<p>\n");
-    print_array(data, k, psize*w, psize, "D");
-    printf("<p>\n");
-    print_array(coding, m, psize*w, psize, "C");
-    printf("<hr>\n");
-  }
-
   erasures = talloc(int, (m+1));
   erased = talloc(int, (k+m));
   for (i = 0; i < m+k; i++) erased[i] = 0;
@@ -220,33 +135,7 @@ int main(int argc, char **argv)
   }
   erasures[i] = -1;
 
-  if (verbose != 2) {
-    printf("Erased %d random devices:", m);
-    for (i = 0; erasures[i] != -1; i++) {
-      printf(" %c%x", ((erasures[i] < k) ? 'D' : 'C'), (erasures[i] < k ? erasures[i] : erasures[i]-k));
-    }
-    printf("\n");
-  }
-
-  recover = tvm_ec_bitmatrix_decode(k, m, w, bitmatrix, erasures, data, coding, w*psize, psize, 0);
-
-  if (verbose != 2) {
-    printf("Dncoding Complete\n\n");
-  } else {
-    start = current_timestamp();
-    for (int repeat = 0; repeat < TIMING_REPEAT; repeat++) {
-      tvm_ec_bitmatrix_decode(k, m, w, bitmatrix, erasures, data, coding, w*psize, psize, 0);
-    }
-    duration = current_timestamp() - start;
-    printf("%lf ", (double)duration/TIMING_REPEAT);
-  }
-
-  if (k < 16 && m < 8 && psize < 64 && verbose == 1) {
-    printf("Here is the recoverd data\n\n");
-    printf("<p>\n");
-    print_array(recover, m, psize*w, psize, "C");
-    printf("<hr>\n");
-  }
+  tvm_ec_bitmatrix_decode(k, m, w, bitmatrix, erasures, data, coding, w*psize, psize, TIMING_REPEAT);
   printf("\n");
   return 0;
 }

@@ -24,7 +24,9 @@ bin_PROGRAMS = jerasure_01 \
                liberation_01 \
                encoder \
                decoder \
-               jerasure_tvm
+               jerasure_tvm \
+               time_tvm_decode \
+               time_tvm_multiply
 
 check_PROGRAMS = 
 
@@ -45,6 +47,8 @@ jerasure_07_SOURCES = jerasure_07.c
 jerasure_08_SOURCES = jerasure_08.c
 
 jerasure_tvm_SOURCES = jerasure_tvm.c
+time_tvm_decode_SOURCES = time_tvm_decode.c
+time_tvm_multiply_SOURCES = time_tvm_multiply.c
 
 reed_sol_01_SOURCES = reed_sol_01.c
 reed_sol_02_SOURCES = reed_sol_02.c
