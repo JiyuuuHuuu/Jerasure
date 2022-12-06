@@ -1530,23 +1530,22 @@ int tvm_ec_bitmatrix_decode(int k, int m, int w, int *bitmatrix, int *erasures,
   recover_ptrs = talloc(char *, m);
   int short_offset = 0;
   int survivor_idx = 0;
-  int device_blk_size = k*w*w*sizeof(int);
+  int device_elem_count = k*w*w;
   for (i = 0; i < k+m; i++) {
     if (erased[i]) {
       // copy target portion of decoding matrix
-      memcpy(short_decoding_matrix + short_offset, decoding_matrix + i*device_blk_size, device_blk_size);
-      short_offset += device_blk_size;
+      memcpy(short_decoding_matrix + short_offset, decoding_matrix + i*device_elem_count, device_elem_count*sizeof(int));
+      short_offset += device_elem_count;
     } else {
       survivor_ptrs[survivor_idx] = i < k ? data_ptrs[i] : coding_ptrs[i-k];
       survivor_idx++;
     }
 
     if (i < m)
-      recover_ptrs[m] = talloc(char, packetsize*w);
+      recover_ptrs[i] = talloc(char, packetsize*w);
   }
 
   tvm_ec_bitmatrix_multiply(k, m, w, short_decoding_matrix, survivor_ptrs, recover_ptrs, 0, packetsize);
-
   free(erased);
   if (dm_ids != NULL) free(dm_ids);
   if (decoding_matrix != NULL) free(decoding_matrix);

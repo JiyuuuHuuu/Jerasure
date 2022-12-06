@@ -104,7 +104,7 @@ int main(int argc, char **argv)
   int k, w, i, j, m, psize;
   int *matrix, *bitmatrix;
   char **data, **coding;
-  // int *erasures, *erased;
+  int *erasures, *erased;
   // int *decoding_matrix, *dm_ids;
   uint32_t seed;
   
@@ -153,5 +153,28 @@ int main(int argc, char **argv)
   
   printf("Encoding Complete\n\n");
 
+  erasures = talloc(int, (m+1));
+  erased = talloc(int, (k+m));
+  for (i = 0; i < m+k; i++) erased[i] = 0;
+  for (i = 0; i < m; ) {
+    erasures[i] = MOA_Random_W(w, 1)%(k);
+    if (erased[erasures[i]] == 0) {
+      erased[erasures[i]] = 1;
+      bzero((erasures[i] < k) ? data[erasures[i]] : coding[erasures[i]-k], psize*w);
+      i++;
+    }
+  }
+  erasures[i] = -1;
+
+  printf("Erased %d random devices:", m);
+  for (i = 0; erasures[i] != -1; i++) {
+    printf(" %c%x", ((erasures[i] < k) ? 'D' : 'C'), (erasures[i] < k ? erasures[i] : erasures[i]-k));
+  }
+  printf("\n");
+
+  i = tvm_ec_bitmatrix_decode(k, m, w, bitmatrix, erasures, data, coding, 
+		  w*psize, psize);
+
+  printf("Dncoding Complete\n\n");
   return 0;
 }
