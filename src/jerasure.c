@@ -1545,7 +1545,7 @@ int tvm_ec_bitmatrix_decode(int k, int m, int w, int *bitmatrix, int *erasures,
       recover_ptrs[i] = talloc(char, packetsize*w);
   }
 
-  tvm_ec_bitmatrix_multiply(k, m, w, short_decoding_matrix, survivor_ptrs, recover_ptrs, 0, packetsize);
+  tvm_ec_bitmatrix_multiply(k, m, w, short_decoding_matrix, survivor_ptrs, coding_ptrs, 0, packetsize);
   free(erased);
   if (dm_ids != NULL) free(dm_ids);
   if (decoding_matrix != NULL) free(decoding_matrix);

@@ -152,6 +152,14 @@ int main(int argc, char **argv)
   tvm_ec_bitmatrix_encode(k, m, w, bitmatrix, data, coding, w*psize, psize);
   
   printf("Encoding Complete\n\n");
+  if (k < 16 && m < 8 && psize < 64) {
+    printf("Here is the state of the system\n\n");
+    printf("<p>\n");
+    print_array(data, k, psize*w, psize, "D");
+    printf("<p>\n");
+    print_array(coding, m, psize*w, psize, "C");
+    printf("<hr>\n");
+  }
 
   erasures = talloc(int, (m+1));
   erased = talloc(int, (k+m));
@@ -176,5 +184,11 @@ int main(int argc, char **argv)
 		  w*psize, psize);
 
   printf("Dncoding Complete\n\n");
+  if (k < 16 && m < 8 && psize < 64) {
+    printf("Here is the recoverd data\n\n");
+    printf("<p>\n");
+    print_array(coding, m, psize*w, psize, "C");
+    printf("<hr>\n");
+  }
   return 0;
 }
