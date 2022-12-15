@@ -83,7 +83,7 @@ unsigned long long current_timestamp() {
 
 int main(int argc, char **argv)
 {
-  int k, w, i, j, m, psize;
+  int k, w, i, j, m, psize, random_enc;
   int *matrix, *bitmatrix;
   char **data, **coding;
   int *erasures, *erased;
@@ -91,7 +91,7 @@ int main(int argc, char **argv)
   uint32_t seed;
   // unsigned long long start, duration;
   
-  if (argc != 6) usage(NULL);
+  if (argc != 7) usage(NULL);
   if (sscanf(argv[1], "%d", &k) == 0 || k <= 0) usage("Bad k");
   if (sscanf(argv[2], "%d", &m) == 0 || m <= 0) usage("Bad m");
   if (sscanf(argv[3], "%d", &w) == 0 || w <= 0 || w > 32) usage("Bad w");
@@ -99,6 +99,7 @@ int main(int argc, char **argv)
   if (sscanf(argv[4], "%d", &psize) == 0 || psize <= 0) usage("Bad packetsize");
   if(psize%sizeof(long) != 0) usage("Packetsize must be multiple of sizeof(long)");
   if (sscanf(argv[5], "%d", &seed) == 0) usage("Bad seed");
+  if (sscanf(argv[6], "%d", &random_enc) == 0) usage("Indicate if encoding matrix is random with 0 and 1");
 
   MOA_Seed(seed);
   matrix = talloc(int, m*k);
@@ -108,6 +109,10 @@ int main(int argc, char **argv)
     }
   }
   bitmatrix = jerasure_matrix_to_bitmatrix(k, m, w, matrix);
+
+  if (random_enc) {
+    MOA_Fill_Random_Region(bitmatrix, k*m*w*w*sizeof(int));
+  }
 
   data = talloc(char *, k);
   for (i = 0; i < k; i++) {
